@@ -5,17 +5,20 @@ let input = readline.createInterface({
     output: process.stdout
 });
 
-function userPromise(dot) // Função cria uma promise para possibilitar a digitação assíncrona do usuário, permitindo esperar a digitação antes de continuar.
+function userPromise(dot) /// Cria uma Promise para capturar a entrada do usuário de forma assíncrona e retornar as palavras normalizadas
 {
     return new Promise ((result) => {
         input.question(dot, (talk) => {
-            let arr = talk.toUpperCase().split(" ");
+            let arr = talk
+            .toUpperCase()
+            .replace(/[^\w\s]/g, "")
+            .split(/\s+/);
             result(arr);
         });
     });
 }
 
-async function userTalk() // Função usa a Promise anteriormente criada, para passar uma variável, onde é feita lógica de tratamento do usuário.
+async function userTalk() // Controla a fala do usuário: aguarda a digitação, limpa a tela, exibe a Elisa e retorna as palavras digitadas
 {
     let speak = [];
     speak = await userPromise("> ");
@@ -29,7 +32,7 @@ async function userTalk() // Função usa a Promise anteriormente criada, para p
     return speak;
 }
 
-function elisaAppear() // Aparencia de Elisa.
+function elisaAppear() // Renderiza o ASCII ART da Elisa no terminal
 {
         const elisa =`
     ⠀⠀⠀⠈⣿⠁⡘⠀⡌⡇⠀⡿⠸⠀⠀⠀⠈⡕⡄⠀⠐⡀⠈⠀⢃⠀⠀⠾⠇⠀⠀⠀⠀
@@ -47,7 +50,7 @@ function elisaAppear() // Aparencia de Elisa.
         console.log(elisa);
 }
 
-function elisaTalkingAnim(elisaspeak) // Função que define o código de animação de fala.
+function elisaTalkingAnim(elisaspeak) // Exibe a fala da Elisa com animação letra por letra e efeito sonoro 
 {
     let arr = []
     arr = elisaspeak.toUpperCase().split('');
@@ -57,9 +60,9 @@ function elisaTalkingAnim(elisaspeak) // Função que define o código de anima�
         for(let i = 0; i < arr.length; i++)
         {
                 setTimeout(() => {    
-                    exec('powershell -c "[console]::beep(800,50)"');
                     process.stdout.write(`${arr[i]}`);
-                }, 120 * i);  
+                    exec('powershell -c "[console]::beep(800,50)"');
+                }, 120 * i);   
         }
 
         setTimeout(() => {
@@ -70,245 +73,300 @@ function elisaTalkingAnim(elisaspeak) // Função que define o código de anima�
 
 }
 
-async function elisaTalking(userTalk) // Função funciona como um motor de processamento da entrada do usuario, e gera respostas condizentes aleatoriamente. (depende das palavras presentes na frase do usuário)
+async function elisaTalking(userTalk) // Monta a resposta da Elisa: reflexão + detecção de emoção + normalização da frase final
 {
-    let match = false;
     let words = await userTalk;
-    let response = [];
-    let draftresponse = [];
-    const rules = [
-        { word: "EU", responses: [
-            "ME FALE MAIS SOBRE VOCÊ, COMO VOCÊ SE SENTE AQUI?",
-            "COMO VOCÊ SE DEFINE? VAMOS EXPLORAR ISSO JUNTOS",
-            "O QUE VOCÊ PENSA SOBRE SI MESMO? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "TRISTE", responses: [
-            "O QUE TE FAZ SENTIR TRISTE? VOCÊ ESTÁ SOZINHO OU PRECISA DE AJUDA?",
-            "QUANDO ESSE SENTIMENTO COMEÇOU? FALOU COM ALGUÉM SOBRE ISSO?",
-            "VOCÊ COSTUMA SE SENTIR ASSIM? VAMOS PENSAR SOBRE O QUE PODE AJUDAR"
-        ]},
-        { word: "FELIZ", responses: [
-            "O QUE TE FAZ FELIZ? VAMOS EXPLORAR ESSAS FONTES DE ALEGRIA",
-            "ESSE SENTIMENTO É RECENTE? VOCÊ CONSEGUE SE PERMITIR SENTIR FELIZ?",
-            "VOCÊ SE PERMITE SENTIR FELIZ? QUEM TE AJUDA A CHEGAR A ISSO?"
-        ]},
-        { word: "ANSIOSO", responses: [
-            "O QUE TE DEIXA ANSIOSO? VOCÊ CONSEGUE RELAXAR OU PRECISA DE AJUDA?",
-            "ESSA ANSIEDADE TEM UM MOTIVO? VAMOS PENSAR SOBRE ELE JUNTOS",
-            "COMO SEU CORPO REAGE A ISSO? ISSO TE FAZ SENTIR CANSADO OU COM MEDO?"
-        ]},
-        { word: "SOZINHO", responses: [
-            "VOCÊ SE SENTE SOZINHO COM FREQUÊNCIA? VAMOS FALAR SOBRE AMIGOS OU FAMÍLIA",
-            "O QUE SIGNIFICA ESTAR SOZINHO PARA VOCÊ? ISSO TE FAZ TRISTE OU ANSIOSO?",
-            "QUANDO FOI A ÚLTIMA VEZ QUE SE SENTIU ASSIM? VAMOS REFLETIR SOBRE ISSO"
-        ]},
-        { word: "CANSADO", responses: [
-            "O QUE TE DEIXA CANSADO? ISSO É FÍSICO OU EMOCIONAL?",
-            "ESSE CANSAÇO É FÍSICO OU EMOCIONAL? VOCÊ CONSEGUE DESCANSAR?",
-            "VOCÊ CONSEGUE DESCANSAR? VAMOS PENSAR EM AJUDA OU SOLUÇÕES"
-        ]},
-        { word: "MEDO", responses: [
-            "O QUE TE ASSUSTA? VOCÊ CONSEGUE FALAR SOBRE ISSO?",
-            "ESSE MEDO É CONSTANTE? COMO VOCÊ REAGE QUANDO ELE SURGE?",
-            "COMO VOCÊ REAGE AO MEDO? VAMOS PENSAR JUNTOS EM SOLUÇÕES"
-        ]},
-        { word: "RAIVA", responses: [
-            "O QUE TE CAUSA RAIVA? VOCÊ CONVERSOU SOBRE ISSO COM ALGUÉM?",
-            "VOCÊ COSTUMA EXPRESSAR SUA RAIVA? ISSO AJUDA OU PREJUDICA?",
-            "ESSA RAIVA É DIRECIONADA A ALGUÉM? VAMOS REFLETIR SOBRE O FUTURO"
-        ]},
-        { word: "ESTOU", responses: [
-            "POR QUE VOCÊ ESTÁ ASSIM? ISSO TE FAZ SENTIR CANSADO OU COM RAIVA?",
-            "COMO VOCÊ CHEGOU A ESSE ESTADO? VAMOS REFLETIR SOBRE ISSO",
-            "O QUE ISSO SIGNIFICA PARA VOCÊ? VOCÊ PENSA NO FUTURO OU PASSADO?"
-        ]},
-        { word: "AMIGO", responses: [
-            "VOCÊ CONFIA NOS SEUS AMIGOS? ISSO TE AJUDA OU PREJUDICA?",
-            "COMO SÃO SUAS AMIZADES? VOCÊ SE SENTE APOIADO?",
-            "UM AMIGO TE AJUDOU RECENTEMENTE? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "FAMILIA", responses: [
-            "COMO É SUA RELAÇÃO COM A FAMÍLIA? TEM CONFLITOS OU APOIO?",
-            "SUA FAMÍLIA TE APOIA? ISSO TE AJUDA OU TE PREOCUPA?",
-            "HÁ CONFLITOS FAMILIARES? VOCÊ CONSEGUE RESOLVER OU DISCUTIR?"
-        ]},
-        { word: "TRABALHO", responses: [
-            "SEU TRABALHO TE SATISFAZ? VOCÊ SE SENTE PRESSÃO OU MOTIVADO?",
-            "O QUE MAIS TE INCOMODA NO TRABALHO? ISSO TE FAZ SENTIR RAIVA OU MEDO?",
-            "VOCÊ SE SENTE VALORIZADO? VAMOS PENSAR EM MUDANÇAS OU AJUDA"
-        ]},
-        { word: "ESTUDO", responses: [
-            "O QUE VOCÊ ESTÁ ESTUDANDO? VOCÊ SE SENTE MOTIVADO OU ANSIOSO?",
-            "ESSE ESTUDO TEM UM OBJETIVO? VAMOS PENSAR SOBRE O FUTURO",
-            "VOCÊ SE SENTE MOTIVADO A APRENDER? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "PRESSAO", responses: [
-            "QUEM TE PRESSIONA? VOCÊ CONSEGUE CONVERSAR SOBRE ISSO?",
-            "ESSA PRESSÃO É INTERNA OU EXTERNA? VAMOS PENSAR EM SOLUÇÕES",
-            "COMO VOCÊ LIDA COM ISSO? ISSO TE FAZ SENTIR RAIVA OU ANSIEDADE?"
-        ]},
-        { word: "FUTURO", responses: [
-            "O QUE VOCÊ ESPERA DO FUTURO? VOCÊ SE SENTE ANSIOSO OU MOTIVADO?",
-            "O FUTURO TE PREOCUPA? VAMOS REFLETIR SOBRE PLANOS",
-            "VOCÊ FAZ PLANOS? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "PASSADO", responses: [
-            "SEU PASSADO TE INFLUENCIA? VOCÊ SE SENTE CULPADO OU APRENDENDO?",
-            "HÁ ALGO DO PASSADO QUE TE MARCOU? ISSO TE FAZ SENTIR RAIVA OU FELICIDADE?",
-            "VOCÊ PENSA MUITO NO PASSADO? VAMOS PENSAR SOBRE O FUTURO"
-        ]},
-        { word: "SONHO", responses: [
-            "QUAL É SEU SONHO? VOCÊ PENSA EM CONQUISTAR OU MUDAR?",
-            "VOCÊ ACREDITA QUE PODE REALIZÁ-LO? VAMOS PENSAR SOBRE OBJETIVOS",
-            "O QUE TE IMPEDE? ISSO TE CAUSA MEDO OU ANSIEDADE?"
-        ]},
-        { word: "OBJETIVO", responses: [
-            "QUAL É SEU OBJETIVO? VAMOS PENSAR EM PASSOS PRÁTICOS",
-            "ESSE OBJETIVO É IMPORTANTE? VOCÊ SE SENTE MOTIVADO OU PRESSÃO?",
-            "VOCÊ ESTÁ PRÓXIMO DE ALCANÇÁ-LO? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "MOTIVADO", responses: [
-            "O QUE TE MOTIVA? VOCÊ SE SENTE FELIZ OU ANSIOSO?",
-            "ESSA MOTIVAÇÃO MUDA COM O TEMPO? VAMOS PENSAR SOBRE OBJETIVOS",
-            "VOCÊ SE SENTE DESMOTIVADO? O QUE AJUDARIA A MUDAR ISSO?"
-        ]},
-        { word: "CONFIANCA", responses: [
-            "VOCÊ CONFIA EM SI MESMO? ISSO TE AJUDA OU PREJUDICA?",
-            "O QUE TE FAZ PERDER CONFIANÇA? VAMOS REFLETIR SOBRE MUDANÇAS",
-            "ALGUÉM QUEBROU SUA CONFIANÇA? VOCÊ CONSEGUE PERDOAR?"
-        ]},
-        { word: "ERRO", responses: [
-            "VOCÊ SE CULPA POR ESSE ERRO? ISSO TE FAZ SENTIR CULPA OU ANSIEDADE?",
-            "O QUE APRENDEU COM ISSO? VAMOS REFLETIR SOBRE MUDANÇAS",
-            "ESSE ERRO AINDA TE AFETA? VOCÊ CONSEGUE SE PERDOAR?"
-        ]},
-        { word: "CULPA", responses: [
-            "POR QUE VOCÊ SE SENTE CULPADO? ISSO TE IMPACTA NO PRESENTE?",
-            "ESSA CULPA É JUSTA? VAMOS EXPLORAR ISSO JUNTOS",
-            "VOCÊ CONSEGUE SE PERDOAR? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "DECISAO", responses: [
-            "ESSA DECISÃO FOI DIFÍCIL? VOCÊ SE ARREPENDE OU ESTÁ SEGURO?",
-            "VOCÊ ESTÁ SEGURO DO QUE DECIDIU? VAMOS REFLETIR SOBRE CONSEQUÊNCIAS",
-            "QUAIS FORAM AS OPÇÕES? ISSO TE DEIXOU ANSIOSO OU ALIVIADO?"
-        ]},
-        { word: "DIFICIL", responses: [
-            "POR QUE ISSO É DIFÍCIL? VOCÊ JÁ PASSOU POR ISSO ANTES?",
-            "VOCÊ JÁ SUPEROU ALGO PARECIDO? ISSO TE AJUDA A SE SENTIR CONFIANTE",
-            "O QUE TE IMPEDE DE AVANÇAR? VAMOS PENSAR SOBRE SOLUÇÕES"
-        ]},
-        { word: "MUDANCA", responses: [
-            "VOCÊ TEM MEDO DE MUDAR? ISSO TE FAZ SENTIR ANSIEDADE OU RAIVA?",
-            "ESSA MUDANÇA É NECESSÁRIA? VAMOS REFLETIR SOBRE BENEFÍCIOS",
-            "O QUE VOCÊ GANHARIA COM ISSO? VOCÊ SE SENTE FELIZ OU INCERTO?"
-        ]},
-        { word: "ESCOLHA", responses: [
-            "ESSA ESCOLHA FOI SUA? VOCÊ SE ARREPENDE OU ESTÁ SEGURO?",
-            "VOCÊ SE ARREPENDE? VAMOS REFLETIR SOBRE CONSEQUÊNCIAS",
-            "HAVIA ALTERNATIVAS? ISSO TE DEIXA FELIZ OU TRISTE?"
-        ]},
-        { word: "TEMPO", responses: [
-            "O TEMPO TE PREOCUPA? VOCÊ SE SENTE PRESSÃO OU CALMO?",
-            "VOCÊ SENTE QUE O TEMPO PASSA RÁPIDO? VAMOS REFLETIR SOBRE PRIORIDADES",
-            "COMO VOCÊ USA SEU TEMPO? ISSO TE FAZ FELIZ OU ANSIOSO?"
-        ]},
-        { word: "VIDA", responses: [
-            "O QUE A VIDA SIGNIFICA PARA VOCÊ? VOCÊ SE SENTE SATISFEITO OU ANSIOSO?",
-            "VOCÊ ESTÁ SATISFEITO COM SUA VIDA? VAMOS PENSAR EM MUDANÇAS",
-            "O QUE GOSTARIA DE MUDAR? ISSO TE FAZ FELIZ OU TRISTE?"
-        ]},
-        { word: "MUNDO", responses: [
-            "COMO VOCÊ VÊ O MUNDO? ISSO TE FAZ FELIZ OU TRISTE?",
-            "O MUNDO TE ASSUSTA? VOCÊ TEM MEDO OU ANSIEDADE?",
-            "VOCÊ SE SENTE PARTE DELE? VAMOS PENSAR SOBRE CONEXÕES"
-        ]},
-        { word: "ESPERANCA", responses: [
-            "VOCÊ AINDA TEM ESPERANÇA? ISSO TE FAZ FELIZ OU ANSIOSO?",
-            "O QUE TE DÁ ESPERANÇA? VAMOS PENSAR SOBRE COMO MANTER ISSO",
-            "ESSA ESPERANÇA É FORTE? VOCÊ SE SENTE MOTIVADO OU DESMOTIVADO?"
-        ]},
-        { word: "AJUDA", responses: [
-            "VOCÊ PRECISA DE AJUDA? VAMOS PENSAR SOBRE SOLUÇÕES",
-            "COMO POSSO AJUDAR VOCÊ? ISSO TE FAZ SENTIR FELIZ OU TRISTE?",
-            "QUE TIPO DE AJUDA VOCÊ PROCURA? VOCÊ PENSA NO FUTURO OU PASSADO?"
-        ]},
-        { word: "OBRIGADO", responses: [
-            "IMAGINA, EU ESTOU AQUI PARA AJUDAR, VAMOS CONTINUAR FALANDO DE VOCÊ",
-            "É SEMPRE BOM TE AJUDAR, VAMOS FALAR DE VOCÊ",
-            "FICO FELIZ EM AJUDAR, MAS CONTINUE, VAMOS FALAR SOBRE VOCÊ"
-        ]},
-        { word: "AQUI", responses: [
-            "ESTOU AQUI PARA ESCUTAR VOCÊ, VAMOS FALAR SOBRE SENTIMENTOS",
-            "O QUE FAZ VOCÊ SE SENTIR AQUI? ISSO TE DEIXA FELIZ OU TRISTE?",
-            "COMO É ESTAR AQUI AGORA? VOCÊ PENSA EM AMIGOS OU FAMÍLIA?"
-        ]},
-        { word: "VAMOS", responses: [
-            "VAMOS FALAR MAIS SOBRE VOCÊ, O QUE VOCÊ PENSA SOBRE SI?",
-            "VAMOS EXPLORAR ESSE SENTIMENTO, VOCÊ SE SENTE FELIZ OU TRISTE?",
-            "VAMOS PENSAR SOBRE ISSO JUNTOS, ISSO TE AJUDA OU PREJUDICA?"
-        ]},
-        { word: "FALOU", responses: [
-            "O QUE VOCÊ FALOU É IMPORTANTE, VAMOS PENSAR SOBRE ISSO",
-            "PODE EXPLICAR MELHOR O QUE FALOU? ISSO TE FAZ SENTIR FELIZ OU TRISTE?",
-            "ESSA PALAVRA QUE FALOU TEM SIGNIFICADO? VAMOS REFLETIR JUNTOS"
-        ]}
-    ];
-    
-    for (let i = 0; i < words.length; i++)
-    {
-        switch(words[i])
-        {
-            case "EU":        response.push(rules[0].responses[Math.floor(Math.random()*rules[0].responses.length)]); match = true; break;
-            case "TRISTE":    response.push(rules[1].responses[Math.floor(Math.random()*rules[1].responses.length)]); match = true; break;
-            case "FELIZ":     response.push(rules[2].responses[Math.floor(Math.random()*rules[2].responses.length)]); match = true; break;
-            case "ANSIOSO":   response.push(rules[3].responses[Math.floor(Math.random()*rules[3].responses.length)]); match = true; break;
-            case "SOZINHO":   response.push(rules[4].responses[Math.floor(Math.random()*rules[4].responses.length)]); match = true; break;
-            case "CANSADO":   response.push(rules[5].responses[Math.floor(Math.random()*rules[5].responses.length)]); match = true; break;
-            case "MEDO":      response.push(rules[6].responses[Math.floor(Math.random()*rules[6].responses.length)]); match = true; break;
-            case "RAIVA":     response.push(rules[7].responses[Math.floor(Math.random()*rules[7].responses.length)]); match = true; break;
-            case "ESTOU":     response.push(rules[8].responses[Math.floor(Math.random()*rules[8].responses.length)]); match = true; break;
-            case "AMIGO":     response.push(rules[9].responses[Math.floor(Math.random()*rules[9].responses.length)]); match = true; break;
-            case "FAMILIA":   response.push(rules[10].responses[Math.floor(Math.random()*rules[10].responses.length)]); match = true; break;
-            case "TRABALHO":  response.push(rules[11].responses[Math.floor(Math.random()*rules[11].responses.length)]); match = true; break;
-            case "ESTUDO":    response.push(rules[12].responses[Math.floor(Math.random()*rules[12].responses.length)]); match = true; break;
-            case "PRESSAO":   response.push(rules[13].responses[Math.floor(Math.random()*rules[13].responses.length)]); match = true; break;
-            case "FUTURO":    response.push(rules[14].responses[Math.floor(Math.random()*rules[14].responses.length)]); match = true; break;
-            case "PASSADO":   response.push(rules[15].responses[Math.floor(Math.random()*rules[15].responses.length)]); match = true; break;
-            case "SONHO":     response.push(rules[16].responses[Math.floor(Math.random()*rules[16].responses.length)]); match = true; break;
-            case "OBJETIVO":  response.push(rules[17].responses[Math.floor(Math.random()*rules[17].responses.length)]); match = true; break;
-            case "MOTIVADO": response.push(rules[18].responses[Math.floor(Math.random()*rules[18].responses.length)]); match = true; break;
-            case "CONFIANCA": response.push(rules[19].responses[Math.floor(Math.random()*rules[19].responses.length)]); match = true; break;
-            case "ERRO":      response.push(rules[20].responses[Math.floor(Math.random()*rules[20].responses.length)]); match = true; break;
-            case "CULPA":     response.push(rules[21].responses[Math.floor(Math.random()*rules[21].responses.length)]); match = true; break;
-            case "DECISAO":   response.push(rules[22].responses[Math.floor(Math.random()*rules[22].responses.length)]); match = true; break;
-            case "DIFICIL":   response.push(rules[23].responses[Math.floor(Math.random()*rules[23].responses.length)]); match = true; break;
-            case "MUDANCA":   response.push(rules[24].responses[Math.floor(Math.random()*rules[24].responses.length)]); match = true; break;
-            case "ESCOLHA":   response.push(rules[25].responses[Math.floor(Math.random()*rules[25].responses.length)]); match = true; break;
-            case "TEMPO":     response.push(rules[26].responses[Math.floor(Math.random()*rules[26].responses.length)]); match = true; break;
-            case "VIDA":      response.push(rules[27].responses[Math.floor(Math.random()*rules[27].responses.length)]); match = true; break;
-            case "MUNDO":     response.push(rules[28].responses[Math.floor(Math.random()*rules[28].responses.length)]); match = true; break;
-            case "ESPERANCA": response.push(rules[29].responses[Math.floor(Math.random()*rules[29].responses.length)]); match = true; break;
-            case "AJUDA":     response.push(rules[30].responses[Math.floor(Math.random()*rules[30].responses.length)]); match = true; break;
-            case "OBRIGADO":  response.push(rules[31].responses[Math.floor(Math.random()*rules[31].responses.length)]); match = true; break;
-            case "AQUI":      response.push(rules[32].responses[Math.floor(Math.random()*rules[32].responses.length)]); match = true; break;
-            case "VAMOS":     response.push(rules[33].responses[Math.floor(Math.random()*rules[33].responses.length)]); match = true; break;
-            case "FALOU":     response.push(rules[34].responses[Math.floor(Math.random()*rules[34].responses.length)]); match = true; break;
-        }
-    }
+    let elisareflection = await elisaReflection(words);
+    let reflection = elisareflection.finalphrase;
+    let otherwords = elisareflection.otherwords;
 
-        if(match)
-        {
-            return response[Math.floor(Math.random() * response.length)];
-        } else
-        {
-            return "ME DESCULPE, EU NAO ENTENDI, PODE SER MAIS ESPECIFICO?";
-        }
+    let phrase = await emotionsFilter(otherwords);
+
+    return phrase = await sentenceNormalizer(reflection.join(" ")) + "? " + phrase;
+    
 }
 
-
-async function main () // Controla fluxo principal, coloca primeira frase de Elisa, e então entra em um loop de conversa infinito.
+async function elisaReflection(words)  // Aplica regras de reflexão e separa palavras relevantes das descartáveis
 {
-    await elisaTalkingAnim("COMO VOCE ESTA SE SENTINDO HOJE? TRISTE? TALVEZ FELIZ?");
+    return new Promise ((result) => {
+        
+    const reflections = {
+        "EU": "VOCE",
+        "VOCE": "EU",
+
+        "ME":"SE",
+
+        "MEU": "SEU",
+        "MINHA": "SUA",
+        "MEUS": "SEUS",
+        "MINHAS": "SUAS",
+
+        "SEU": "MEU",
+        "SUA": "MINHA",
+        "SEUS": "MEUS",
+        "SUAS": "MINHAS",
+
+        "ESTOU": "ESTÁ",
+        "ESTÁ": "ESTOU",
+        "ESTAMOS": "ESTÃO",
+        "ESTÃO": "ESTAMOS",
+
+        "SOU": "É",
+        "É": "SOU",
+        "SOMOS": "SÃO",
+        "SÃO": "SOMOS",
+
+        "QUERO": "QUER",
+        "QUER": "QUERO",
+
+        "PRECISO": "PRECISA",
+        "PRECISA": "PRECISO",
+
+        "SINTO": "SENTE",
+        "SENTE": "SINTO",
+
+        "POSSO": "PODE",
+        "PODE": "POSSO",
+
+        "TENHO": "TEM",
+        "TEM": "TENHO",
+
+        "GOSTO": "GOSTA",
+        "GOSTA": "GOSTO",
+
+        "ACHO": "ACHA",
+        "ACHA": "ACHO",
+
+        "PENSO": "PENSA",
+        "PENSA": "PENSO",
+
+        "NOS":"VOCES"
+    };
+
+
+        let phrasereflections = [];
+        let otherwords = [];
+        let finalphrase = [];
+
+        for (let i = 0; i < words.length; i++)
+        {
+            if (words[i] in reflections)
+            {
+                phrasereflections.push(reflections[words[i]]);
+            }
+            else if (!["ME", "TE", "SE", "NOS", "LHE", "LHES"].includes(words[i]))
+            {
+                otherwords.push(words[i]);
+            }
+        }
+
+        finalphrase = phrasereflections.concat(otherwords);
+
+        result({
+            otherwords,
+            finalphrase
+        });
+    });
+}
+
+async function emotionsFilter(otherwords)  // Detecta emoções a partir das palavras do usuário e retorna uma frase coerente com o estado emocional
+{
+    let allemotions = [];
+    let draftemotion = "";
+    let phrases = [];
+    let draftphrase = "";
+
+    const emotions = {
+
+        "TRISTE": "TRISTEZA",
+        "TRISTES": "TRISTEZA",
+        "MAL": "TRISTEZA",
+        "TRISTEZA": "TRISTEZA",
+        "DEPRIMIDO": "TRISTEZA",
+        "DEPRIMIDA": "TRISTEZA",
+        "DESANIMADO": "TRISTEZA",
+        "DESANIMADA": "TRISTEZA",
+        "MELANCOLICO": "TRISTEZA",
+        "MELANCOLICA": "TRISTEZA",
+        "SOZINHO": "TRISTEZA",
+        "SOZINHA": "TRISTEZA",
+
+        "FELIZ": "FELICIDADE",
+        "FELIZES": "FELICIDADE",
+        "ALEGRE": "FELICIDADE",
+        "ALEGRES": "FELICIDADE",
+        "CONTENTE": "FELICIDADE",
+        "CONTENTES": "FELICIDADE",
+        "ANIMADO": "FELICIDADE",
+        "ANIMADA": "FELICIDADE",
+        "EMPOLGADO": "FELICIDADE",
+        "EMPOLGADA": "FELICIDADE",
+
+        "ANSIOSO": "ANSIEDADE",
+        "ANSIOSA": "ANSIEDADE",
+        "ANSIOSOS": "ANSIEDADE",
+        "ANSIOSAS": "ANSIEDADE",
+        "NERVOSO": "ANSIEDADE",
+        "NERVOSA": "ANSIEDADE",
+        "PREOCUPADO": "ANSIEDADE",
+        "PREOCUPADA": "ANSIEDADE",
+        "INSEGURO": "ANSIEDADE",
+        "INSEGURA": "ANSIEDADE",
+
+        "BRAVO": "RAIVA",
+        "BRAVA": "RAIVA",
+        "IRRITADO": "RAIVA",
+        "IRRITADA": "RAIVA",
+        "RAIVA": "RAIVA",
+        "ODIOSO": "RAIVA",
+        "ODIOSA": "RAIVA",
+
+        "MEDO": "MEDO",
+        "ASSUSTADO": "MEDO",
+        "ASSUSTADA": "MEDO",
+        "APAVORADO": "MEDO",
+        "APAVORADA": "MEDO",
+
+        "CONFUSO": "CONFUSAO",
+        "CONFUSO" : "CONFUSO",
+        "CONFUSA": "CONFUSAO",
+        "PERDIDO": "CONFUSAO",
+        "PERDIDA": "CONFUSAO",
+
+        "CANSADO": "CANSACO",
+        "CANSADA": "CANSACO",
+        "EXAUSTO": "CANSACO",
+        "EXAUSTA": "CANSACO"
+    };
+
+        for(let i = 0; i < otherwords.length; i++)
+        {
+            if(otherwords[i] in emotions)
+            {
+                allemotions.push(emotions[otherwords[i]]);
+
+                
+            }
+        }
+
+        
+        if (allemotions.length > 0) {
+            draftemotion = allemotions[Math.floor(Math.random() * allemotions.length)];
+        } else {
+            draftemotion = "NEUTRO";
+        }
+
+
+    switch (draftemotion)
+    {
+        case "TRISTEZA":
+            phrases = [
+                "PARECE QUE HÁ UM PESO EM SUAS PALAVRAS, QUER FALAR MAIS SOBRE ISSO?",
+                "A TRISTEZA COSTUMA TER UMA HISTÓRIA, QUAL É A SUA?",
+                "O QUE VOCÊ ACHA QUE CONTRIBUI PARA ESSE SENTIMENTO?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "FELICIDADE":
+            phrases = [
+                "É BOM SENTIR FELICIDADE, O QUE TE FEZ CHEGAR A ESSE MOMENTO?",
+                "ESSA FELICIDADE É ALGO QUE VOCÊ QUER MANTER?",
+                "QUANDO VOCÊ SE SENTE ASSIM, O QUE MAIS VALORIZA?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "ANSIEDADE":
+            phrases = [
+                "A ANSIEDADE COSTUMA VIR COM MUITOS PENSAMENTOS, QUAIS PASSAM PELA SUA MENTE?",
+                "O QUE VOCÊ TEM MAIS DIFICULDADE EM CONTROLAR NESSE MOMENTO?",
+                "SEU CORPO TAMBÉM SENTE ESSA ANSIEDADE?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "RAIVA":
+            phrases = [
+                "A RAIVA NORMALMENTE ESCONDE OUTRO SENTIMENTO, QUAL VOCÊ ACHA QUE É?",
+                "O QUE DESENCADEOU ESSA RAIVA EM VOCÊ?",
+                "VOCÊ COSTUMA EXPRESSAR OU GUARDAR ESSA RAIVA?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "MEDO":
+            phrases = [
+                "O MEDO COSTUMA PROTEGER, MAS TAMBÉM LIMITAR, DO QUE VOCÊ TEM MEDO?",
+                "ESSE MEDO É ALGO RECENTE OU ANTIGO?",
+                "O QUE VOCÊ ACHA QUE ACONTECERIA SE ENFRENTASSE ESSE MEDO?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "CONFUSAO":
+            phrases = [
+                "QUANDO TUDO PARECE CONFUSO, POR ONDE VOCÊ ACHA QUE DEVERIA COMEÇAR?",
+                "O QUE ESTÁ MAIS DIFÍCIL DE ENTENDER AGORA?",
+                "ESSA CONFUSÃO TE DEIXA ANSIOSO OU CANSADO?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "CANSACO":
+            phrases = [
+                "ESSE CANSAÇO É MAIS FÍSICO OU EMOCIONAL?",
+                "HÁ QUANTO TEMPO VOCÊ SE SENTE ASSIM?",
+                "VOCÊ CONSEGUE DESCANSAR OU ALGO TE IMPEDE?"
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+
+        case "NEUTRO":
+        default:
+            phrases = [
+                "PODE ME CONTAR MAIS SOBRE O QUE ESTÁ SENTINDO?",
+                "O QUE TE FEZ DIZER ISSO?",
+                "VAMOS FALAR UM POUCO MAIS SOBRE VOCÊ."
+            ];
+
+            draftphrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return draftphrase;
+    }
+
+}
+
+function sentenceNormalizer(sentence) // Corrige estruturas gramaticais da frase final usando regras baseadas em regex
+{
+    const grammarRules = [
+        { pattern: /\bVOCE\s+SÃO\b/g, replace: "VOCE É" },
+
+        { pattern: /^VOCE\s+E\b/g, replace: "VOCES" },
+
+        { pattern: /\bVOCE\s+(SUA|SEU|SUAS|SEUS)\b/g, replace: "VOCE" },
+
+        { pattern: /\b(QUER|PODE|PRECISA)\s+NAO\b/g, replace: "NAO $1" },
+
+        { pattern: /\b(ME|TE|NOS|LHE|LHES)\b/g, replace: "" },
+
+        { pattern: /\s{2,}/g, replace: " " }
+    ];
+
+    return grammarRules.reduce((s, rule) => {
+        return s.replace(rule.pattern, rule.replace);
+    }, sentence);
+}
+
+async function main () // Controla o fluxo principal do programa e mantém o loop infinito de conversa com a Elisa
+{
+    await elisaTalkingAnim("COMO VOCE ESTA SE SENTINDO HOJE?");
     while (true)
     {
         let elisaresponse = await elisaTalking(userTalk());  
